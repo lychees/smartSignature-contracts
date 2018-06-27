@@ -30,11 +30,13 @@ contract ERC721Interface {
 contract ERC721 is ERC721Interface, OwnerableContract{
     event Bought (uint256 indexed _tokenId, address indexed _owner, uint256 _price);
     event Sold (uint256 indexed _tokenId, address indexed _owner, uint256 _price);
+
     event Transfer(address indexed _from, address indexed _to, uint256 _tokenId);
     event Approval(address indexed _owner, address indexed _approved, uint256 _tokenId);
     uint256 public total;
     mapping (uint256 => address) private ownerOfToken;
     mapping (uint256 => address) private approvedOfToken;
+
 
     constructor() public {
         owner = msg.sender;
@@ -59,7 +61,7 @@ contract ERC721 is ERC721Interface, OwnerableContract{
         for (uint256 i = 0; i < total; i++) {
             if (ownerOf(i) == _owner) {
                 counter++;
-			}
+      			}
         }
         return counter;
     }
