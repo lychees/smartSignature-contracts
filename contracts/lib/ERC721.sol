@@ -30,12 +30,12 @@ contract ERC721Interface {
 contract ERC721 is ERC721Interface, OwnerableContract{
     event Bought (uint256 indexed _tokenId, address indexed _owner, uint256 _price);
     event Sold (uint256 indexed _tokenId, address indexed _owner, uint256 _price);
-    event Transfer(address indexed _from, address indexed _to, uint256 _tokenId);
-    event Approval(address indexed _owner, address indexed _approved, uint256 _tokenId);
 
-	uint256 pravate total;
-    mapping (uint256 => address) private ownerOfToken;
-    mapping (uint256 => address) private approvedOfToken;
+	uint256 internal total;
+    uint256[] internal listedTokens;
+    mapping (uint256 => address) internal ownerOfToken;
+    mapping (uint256 => address) internal approvedOfToken;
+    
 
     constructor() public {
         owner = msg.sender;
@@ -56,6 +56,7 @@ contract ERC721 is ERC721Interface, OwnerableContract{
     }
 
     function balanceOf (address _owner) public view returns (uint256 _balance) {
+        require(_owner != address(0));
 		uint256 counter = 0;
       	for (uint256 i = 0; i < total; i++) {
 			if (ownerOf(i) == _owner) {

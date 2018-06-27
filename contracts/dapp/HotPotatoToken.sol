@@ -14,13 +14,14 @@ contract HotPotatoToken is SmartSignature{
     }
 
     Token[] public tokens;
+    uint256 public tokensSize;
     constructor() public {
         owner = msg.sender;
         admins[owner] = true;
     }
     
-    function getNextPrice (uint256 _id) public pure returns (uint256 _nextPrice) {
-        return Token[_id].price * Token[_id].ratio / 100;
+    function getNextPrice (uint256 _id) public view returns (uint256 _nextPrice) {
+        return tokens[_id].price * tokens[_id].ratio / 100;
     }
 
      // TODO complete Token info
@@ -31,8 +32,8 @@ contract HotPotatoToken is SmartSignature{
     /* ... */
     function create(uint256 _price, uint256 _ratio, uint256 _startTime, uint256 _endTime) public {
         require(_startTime <= _endTime);
-        issueToken(address(this));
-        Token memory Token = Token({
+        issueTokenAndTransfer(address(this));
+        Token memory token = Token({
             creator: msg.sender,
             owner: msg.sender,
             price: _price,
@@ -41,9 +42,9 @@ contract HotPotatoToken is SmartSignature{
             endTime: _endTime
         });                
         if (tokensSize == tokens.length) {        
-            tokens.push(Token);
+            tokens.push(token);
         } else {    
-            tokens[tokensSize] = Token;
+            tokens[tokensSize] = token;
         }
         tokensSize += 1;
     }
