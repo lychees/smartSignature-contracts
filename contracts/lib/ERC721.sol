@@ -31,11 +31,12 @@ contract ERC721 is ERC721Interface, OwnerableContract{
     event Bought (uint256 indexed _tokenId, address indexed _owner, uint256 _price);
     event Sold (uint256 indexed _tokenId, address indexed _owner, uint256 _price);
 
-	uint256 internal total;
-    uint256[] internal listedTokens;
-    mapping (uint256 => address) internal ownerOfToken;
-    mapping (uint256 => address) internal approvedOfToken;
-    
+    event Transfer(address indexed _from, address indexed _to, uint256 _tokenId);
+    event Approval(address indexed _owner, address indexed _approved, uint256 _tokenId);
+    uint256 public total;
+    mapping (uint256 => address) private ownerOfToken;
+    mapping (uint256 => address) private approvedOfToken;
+
 
     constructor() public {
         owner = msg.sender;
@@ -56,32 +57,29 @@ contract ERC721 is ERC721Interface, OwnerableContract{
     }
 
     function balanceOf (address _owner) public view returns (uint256 _balance) {
-        require(_owner != address(0));
-		uint256 counter = 0;
-      	for (uint256 i = 0; i < total; i++) {
-			if (ownerOf(i) == _owner) {
-				counter++;
-			}
-		}
-	  	return counter;
+        uint256 counter = 0;
+        for (uint256 i = 0; i < total; i++) {
+            if (ownerOf(i) == _owner) {
+                counter++;
+      			}
+        }
+        return counter;
     }
 
     function ownerOf (uint256 _tokenId) public view returns (address _owner) {
-      return ownerOfToken[_tokenId];
+        return ownerOfToken[_tokenId];
     }
 
     function tokensOf (address _owner) public view returns (uint256[] _tokenIds) {
-      uint256[] memory Tokens = new uint256[](balanceOf(_owner));
-
-      uint256 TokenCounter = 0;
-      for (uint256 i = 0; i < listedTokens.length; i++) {
-        if (ownerOf(listedTokens[i]) == _owner) {
-          Tokens[TokenCounter] = listedTokens[i];
-          TokenCounter += 1;
+        uint256[] memory Tokens = new uint256[](balanceOf(_owner));
+        uint256 TokenCounter = 0;
+        for (uint256 i = 0; i < listedTokens.length; i++) {
+            if (ownerOf(listedTokens[i]) == _owner) {
+                Tokens[TokenCounter] = listedTokens[i];
+                TokenCounter += 1;
+            }
         }
-      }
-
-      return Tokens;
+        return Tokens;
     }
 
     function approvedFor(uint256 _tokenId) public view returns (address _approved) {
