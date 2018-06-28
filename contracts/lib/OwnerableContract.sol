@@ -1,7 +1,14 @@
-pragma solidity ^0.4.22;
+pragma solidity ^0.4.24;
+
 
 contract OwnerableContract{
     address public owner;
+
+    event OwnershipTransferred(
+        address indexed previousOwner,
+        address indexed newOwner
+    );
+    
     mapping (address => bool) public admins;
 
     constructor () public { 
@@ -17,7 +24,7 @@ contract OwnerableContract{
     // This means that if the owner calls this function, the
     // function is executed and otherwise, an exception is
     // thrown.
-    modifier onlyOwner {
+    modifier onlyOwner() {
         require(
             msg.sender == owner,
             "Only owner can call this function."
@@ -27,7 +34,7 @@ contract OwnerableContract{
     modifier onlyAdmins() {
         require(
             admins[msg.sender],
-            "Only owner can call this function."
+            "Only admin can call this function."
         );
         _;
     }    
@@ -37,20 +44,38 @@ contract OwnerableContract{
         owner = _owner;
     }
 
-    function addAdmin (address _admin) onlyOwner() public {
+    /**
+     * @dev Allows the current owner to transfer control of the contract to a newOwner.
+     * @param _newOwner The address to transfer ownership to.
+     */
+    function transferOwnership(address _newOwner) public onlyOwner {
+        _transferOwnership(_newOwner);
+    }
+
+    /**
+     * @dev Transfers control of the contract to a newOwner.
+     * @param _newOwner The address to transfer ownership to.
+     */
+    function _transferOwnership(address _newOwner) internal {
+        require(_newOwner != address(0));
+        emit OwnershipTransferred(owner, _newOwner);
+        owner = _newOwner;
+    }
+
+    function addAdmin (address _admin) onlyOwner public {
         admins[_admin] = true;
     }
 
-    function removeAdmin (address _admin) onlyOwner() public {
+    function removeAdmin (address _admin) onlyOwner public {
         delete admins[_admin];
     }  
     
-      /* Withdraw */
-    function withdrawAll () onlyAdmins() public {
+    /* Withdraw */
+    function withdrawAll () onlyAdmins public {
         msg.sender.transfer(address(this).balance);
     }
 
-    function withdrawAmount (uint256 _amount) onlyAdmins() public {
+    function withdrawAmount (uint256 _amount) onlyAdmins public {
         msg.sender.transfer(_amount);
     }  
 }
