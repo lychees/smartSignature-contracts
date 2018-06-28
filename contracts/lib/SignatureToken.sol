@@ -1,104 +1,198 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.24;
 
-contract Token{
-    // token总量，默认会为public变量生成一个getter函数接口，名称为totalSupply().
-    uint256 public totalSupply;
+import "./SafeMath.sol";
+import "./OwnerableContract.sol";
 
-    /// 获取账户_owner拥有token的数量
-    function balanceOf(address _owner) constant returns (uint256 balance);
+/**
+ * @title ERC20Interface
+ * @dev https: *github.com/ethereum/EIPs/blob/master/EIPS/eip-20.md
+ */
+ contract ERC20Interface {
+    function totalSupply() public view returns (uint256);
+    function balanceOf(address tokenOwner) public view returns (uint256 balance);
+    function allowance(address tokenOwner, address spender) public view returns (uint256 remaining);
+    function transfer(address to, uint256 tokens) public returns (bool success);
+    function approve(address spender, uint256 tokens) public returns (bool success);
+    function transferFrom(address from, address to, uint256 tokens) public returns (bool success);
 
-    //从消息发送者账户中往_to账户转数量为_value的token
-    function transfer(address _to, uint256 _value) returns (bool success);
-
-    //从账户_from中往账户_to转数量为_value的token，与approve方法配合使用
-    function transferFrom(address _from, address _to, uint256 _value) returns
-    (bool success);
-
-    //消息发送账户设置账户_spender能从发送账户中转出数量为_value的token
-    function approve(address _spender, uint256 _value) returns (bool success);
-
-    //获取账户_spender可以从账户_owner中转出token的数量
-    function allowance(address _owner, address _spender) constant returns
-    (uint256 remaining);
-
-    //发生转账时必须要触发的事件
-    event Transfer(address indexed _from, address indexed _to, uint256 _value);
-
-    //当函数approve(address _spender, uint256 _value)成功执行时必须触发的事件
-    event Approval(address indexed _owner, address indexed _spender, uint256
-    _value);
+    event Transfer(address indexed from, address indexed to, uint256 tokens);
+    event Approval(address indexed tokenOwner, address indexed spender, uint256 tokens);
 }
 
-contract StandardToken is Token {
-    function transfer(address _to, uint256 _value) returns (bool success) {
-        //默认totalSupply 不会超过最大值 (2^256 - 1).
-        //如果随着时间的推移将会有新的token生成，则可以用下面这句避免溢出的异常
-        //require(balances[msg.sender] >= _value && balances[_to] + _value > balances[_to]);
-        require(balances[msg.sender] >= _value);
-        balances[msg.sender] -= _value;//从消息发送者账户中减去token数量_value
-        balances[_to] += _value;//往接收账户增加token数量_value
-        Transfer(msg.sender, _to, _value);//触发转币交易事件
-        return true;
-    }
 
-
-    function transferFrom(address _from, address _to, uint256 _value) returns
-    (bool success) {
-        //require(balances[_from] >= _value && allowed[_from][msg.sender] >=
-        // _value && balances[_to] + _value > balances[_to]);
-        require(balances[_from] >= _value && allowed[_from][msg.sender] >= _value);
-        balances[_to] += _value;//接收账户增加token数量_value
-        balances[_from] -= _value; //支出账户_from减去token数量_value
-        allowed[_from][msg.sender] -= _value;//消息发送者可以从账户_from中转出的数量减少_value
-        Transfer(_from, _to, _value);//触发转币交易事件
-        return true;
-    }
-    function balanceOf(address _owner) constant returns (uint256 balance) {
-        return balances[_owner];
-    }
-
-
-    function approve(address _spender, uint256 _value) returns (bool success)
-    {
-        allowed[msg.sender][_spender] = _value;
-        Approval(msg.sender, _spender, _value);
-        return true;
-    }
-
-
-    function allowance(address _owner, address _spender) constant returns (uint256 remaining) {
-        return allowed[_owner][_spender];//允许_spender从_owner中转出的token数
-    }
-    mapping (address => uint256) balances;
-    mapping (address => mapping (address => uint256)) allowed;
+/**
+ * @dev Contract function to receive approval and execute function in one call
+ */
+contract ApproveAndCallFallBack {
+    function receiveApproval(address from, uint256 tokens, address token, bytes data) public;
 }
 
-contract SignatureToken is StandardToken {
+/**
+ * @title Pausable
+ * @dev Base contract which allows children to implement an emergency stop mechanism.
+ */
+contract Pausable is OwnerableContract {
+  event Pause();
+  event Unpause();
 
-    /* Public variables of the token */
-    string public name;                   //名称: eg Simon Bucks
-    uint8 public decimals;               //最多的小数位数，How many decimals to show. ie. There could 1000 base units with 3 decimals. Meaning 0.980 SBX = 980 base units. It's like comparing 1 wei to 1 ether.
-    string public symbol;               //token简称: eg SBX
-    string public version = 'H0.1';    //版本
+  bool public paused = false;
 
-    function SignatureToken(uint256 _initialAmount, string _tokenName, uint8 _decimalUnits, string _tokenSymbol) {
-        balances[msg.sender] = _initialAmount; // 初始token数量给予消息发送者
-        totalSupply = _initialAmount;         // 设置初始总量
-        name = _tokenName;                   // token名称
-        decimals = _decimalUnits;           // 小数位数
-        symbol = _tokenSymbol;             // token简称
+
+  /**
+   * @dev Modifier to make a function callable only when the contract is not paused.
+   */
+  modifier whenNotPaused() {
+    require(!paused);
+    _;
+  }
+
+  /**
+   * @dev Modifier to make a function callable only when the contract is paused.
+   */
+  modifier whenPaused() {
+    require(paused);
+    _;
+  }
+
+  /**
+   * @dev called by the owner to pause, triggers stopped state
+   */
+  function pause() onlyAdmins whenNotPaused public {
+    paused = true;
+    emit Pause();
+  }
+
+  /**
+   * @dev called by the owner to unpause, returns to normal state
+   */
+  function unpause() onlyAdmins whenPaused public {
+    paused = false;
+    emit Unpause();
+  }
+}
+
+/**
+ * @title 
+ * @dev ERC20 Token, with the addition of symbol, name and decimals and an initial supply
+ */
+contract SignatureToken is ERC20Interface, Pausable {
+    using SafeMath for uint256;
+
+    string public symbol;
+    string public  name;
+    uint8 public decimals;
+    string public version = "H0.1";
+    
+    uint256 totalSupply_;
+    uint256  maxSupply;
+
+    mapping(address => uint256) balances;
+    mapping(address => mapping(address => uint256)) allowed;
+
+
+    /**
+     * @dev Constructor
+     */ 
+    constructor(string _symbol, string _name, uint256 _initialAmount, uint256 _maxSupply) public {
+        symbol = _symbol;
+        name = _name;
+        decimals = 18;
+        totalSupply_ = _initialAmount * 10**uint(decimals);
+        maxSupply = _maxSupply;
+        balances[owner] = totalSupply_;
+        
+        emit Transfer(address(0), msg.sender, totalSupply_);
     }
 
-    /* Approves and then calls the receiving contract */
 
-    function approveAndCall(address _spender, uint256 _value, bytes _extraData) returns (bool success) {
-        allowed[msg.sender][_spender] = _value;
-        Approval(msg.sender, _spender, _value);
-        //call the receiveApproval function on the contract you want to be notified. This crafts the function signature manually so one doesn't have to include a contract in here just for this.
-        //receiveApproval(address _from, uint256 _value, address _tokenContract, bytes _extraData)
-        //it is assumed that when does this that the call *should* succeed, otherwise one would use vanilla approve instead.
-        require(_spender.call(bytes4(bytes32(sha3("receiveApproval(address,uint256,address,bytes)"))), msg.sender, _value, this, _extraData));
+    function totalSupply() public view returns (uint256) {
+        return totalSupply_;
+    }
+
+    function balanceOf(address _tokenOwner) public view returns (uint256 balance) {
+        return balances[_tokenOwner];
+    }
+
+
+    /**
+     * Transfer the balance from token owner's account to `to` account
+     * - Owner's account must have sufficient balance to transfer
+     * - 0 value transfers are allowed
+     */ 
+    function transfer(address _to, uint256 _tokens) public whenNotPaused returns (bool success) {
+        balances[msg.sender] = balances[msg.sender].sub(_tokens);
+        balances[_to] = balances[_to].add(_tokens);
+        emit Transfer(msg.sender, _to, _tokens);
         return true;
     }
 
+
+    /** 
+     * Token owner can approve for `spender` to transferFrom(...) `tokens`
+     * from the token owner's account
+     *
+     * https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
+     * recommends that there are no checks for the approval double-spend attack
+     * as this should be implemented in user interfaces 
+     */
+    function approve(address _spender, uint256 _tokens) public whenNotPaused returns (bool success) {
+        allowed[msg.sender][_spender] = _tokens;
+        emit Approval(msg.sender, _spender, _tokens);
+        return true;
+    }
+
+
+    /**
+     * Transfer `tokens` from the `from` account to the `to` account
+     * 
+     * The calling account must already have sufficient tokens approve(...)-d
+     * for spending from the `from` account and
+     * - From account must have sufficient balance to transfer
+     * - Spender must have sufficient allowance to transfer
+     * - 0 value transfers are allowed
+     */
+    function transferFrom(address _from, address _to, uint256 _tokens) public whenNotPaused returns (bool success) {
+        balances[_from] = balances[_from].sub(_tokens);
+        allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_tokens);
+        balances[_to] = balances[_to].add(_tokens);
+        emit Transfer(_from, _to, _tokens);
+        return true;
+    }
+
+
+    /**
+     * Returns the amount of tokens approved by the owner that can be
+     * transferred to the spender's account
+     */
+    function allowance(address _tokenOwner, address _spender) public view returns (uint256 remaining) {
+        return allowed[_tokenOwner][_spender];
+    }
+
+
+    /** 
+     * Token owner can approve for `spender` to transferFrom(...) `tokens`
+     * from the token owner's account. The `spender` contract function
+     * `receiveApproval(...)` is then executed
+     */
+    function approveAndCall(address _spender, uint256 _tokens, bytes _data) public whenNotPaused returns (bool success) {
+        allowed[msg.sender][_spender] = _tokens;
+        emit Approval(msg.sender, _spender, _tokens);
+        ApproveAndCallFallBack(_spender).receiveApproval(msg.sender, _tokens, this, _data);
+        return true;
+    }
+
+    function mintToken(address _target, uint256 _mintedAmount) onlyAdmins whenNotPaused public {
+        require(totalSupply_ <= maxSupply);
+        balances[_target] = balances[_target].add(_mintedAmount);
+        totalSupply_ = totalSupply_.add(_mintedAmount);
+        emit Transfer(0, owner, _mintedAmount);
+        emit Transfer(owner, _target, _mintedAmount);
+    }
+
+    /** 
+     * Owner can transfer out any accidentally sent ERC20 tokens
+     */
+    function transferAnyERC20Token(address tokenAddress, uint256 tokens) public onlyOwner returns (bool success) {
+        return ERC20Interface(tokenAddress).transfer(owner, tokens);
+    }
 }
